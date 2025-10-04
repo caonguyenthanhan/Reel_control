@@ -13,8 +13,10 @@ chrome.commands.onCommand.addListener((command) => {
   if (command === "toggle_extension") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs[0];
-      if (tab && tab.id) {
-        chrome.tabs.sendMessage(tab.id, { type: "toggle" });
+      const url = (tab && tab.url) || "";
+      const supported = /^(https?:\/\/)?([^\/]*\.)?(youtube\.com|facebook\.com|tiktok\.com)\//i.test(url);
+      if (tab && tab.id && supported) {
+        chrome.tabs.sendMessage(tab.id, { type: "toggle" }, () => { void chrome.runtime.lastError; });
       }
     });
   }

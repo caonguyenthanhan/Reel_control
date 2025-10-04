@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Reel Control",
+  "version": "1.0.0",
+  "description": "Cải thiện trải nghiệm xem video ngắn: auto-advance, điều khiển tốc độ, phím tắt, chụp ảnh.",
+  "permissions": ["activeTab", "storage", "downloads", "tabs"],
+  "background": { "service_worker": "background.js" },
+  "icons": {
+    "16": "icons/icon16.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.facebook.com/*",
+        "*://*.youtube.com/*",
+        "*://*.tiktok.com/*"
+      ],
+      "js": ["utils.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle_extension": {
+      "suggested_key": { "default": "Ctrl+Shift+Down" },
+      "description": "Bật/Tắt tính năng tự động vuốt"
+    }
+  }
+}

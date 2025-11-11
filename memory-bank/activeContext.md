@@ -18,6 +18,22 @@
 - Facebook có nhiều biến thể UI, 
   cần mở rộng selector cho nút "Tiếp theo"/"Video tiếp theo" và container.
 
+## Cập nhật
+- Bổ sung selector Facebook dựa trên SVG class (x14rh7hd x1lliihq x1tzjh5l x1k90msu x2h7rmj x1qfuztq) để click nút Next đáng tin cậy hơn.
+ - Đã chạy server cục bộ và mở Facebook.html để quan sát UI; các lỗi tải chrome-extension ngoại lai không ảnh hưởng tới kiểm thử giao diện.
+ - Thu hẹp selector Facebook: chỉ dùng aria-label/alt "Next"/"Go to next reel"/"Tiếp theo" và giới hạn tìm trong dialog để tránh click menu.
+- Sự kiện phím được phát tới dialog/activeElement trước khi body/window để tăng hiệu quả điều hướng.
+- Đã khởi chạy lại server cục bộ và mở Facebook.html để xác nhận selector mới không click vào menu; lỗi chrome-extension trong preview là mong đợi và không ảnh hưởng.
+- Điều chỉnh điều hướng Facebook: gửi ArrowRight trước; chỉ gửi ArrowDown nếu kiểm tra thấy chưa chuyển video (so sánh element/src) để tránh lướt 2 video một lượt.
+- Tách 3 luồng logic độc lập:
+  * YouTube Shorts: clickNextButtonYouTube + ArrowDown fallback.
+  * Facebook Reels: clickNextButtonFacebook (tìm trong dialog) + ArrowRight, chỉ ArrowDown nếu chưa chuyển.
+  * TikTok: clickNextButtonTikTok + scroll fallback.
+ - Giới hạn phát keydown tới một target: ưu tiên `div[role="dialog"]`, nếu không có thì `document.activeElement`, cuối cùng là `document`. Tránh phát đồng thời tới nhiều nơi gây double-action trên Facebook.
+ - TikTok ưu tiên click nút mũi tên xuống (`button[data-e2e="arrow-down"]`) để sang video tiếp theo.
+ - Nâng cấp nhận diện video: tìm trong dialog và nới điều kiện readyState để không bỏ lỡ video Facebook.
+ - Bổ sung fallback phím ArrowDown sau ArrowRight cho Facebook.
+
 Trạng thái hiện tại
 - Đã khởi tạo scaffold extension MV3: manifest.json, background.js, content.js, utils.js, icons/.
 - Đã triển khai nền tảng cơ bản: Auto-Advance (lắng nghe ended và cuộn/keydown), Speed Controller (phím D/S/R), overlay hiển thị tốc độ, lưu chrome.storage.sync, Pause/Play (Spacebar), Screenshot (Shift+S) qua background, Toggle (Ctrl+Shift+Down).

@@ -22,9 +22,12 @@ const rcUtils = (() => {
   }
 
   function visibleVideos() {
-    return Array.from(document.querySelectorAll("video")).filter(v => 
-      isInViewport(v) && !v.ended && v.readyState >= 3 
-    );
+    let vids = Array.from(document.querySelectorAll("video"));
+    if (vids.length === 0) {
+      const dialog = document.querySelector('div[role="dialog"]');
+      if (dialog) vids = Array.from(dialog.querySelectorAll('video'));
+    }
+    return vids.filter(v => isInViewport(v) && !v.ended && (v.readyState >= 2 || Number.isFinite(v.duration)) && v.clientHeight > 100 && v.clientWidth > 100);
   }
   
   function currentVideo() {
@@ -86,49 +89,99 @@ const rcUtils = (() => {
       metaKey: metaKey
     });
 
+    const dialog = document.querySelector('div[role="dialog"]');
+    if (dialog) dialog.dispatchEvent(event);
+    const ae = document.activeElement;
+    if (ae && ae !== document.body && ae !== document.documentElement) ae.dispatchEvent(event);
     document.body.dispatchEvent(event);
-    window.dispatchEvent(event); 
+    window.dispatchEvent(event);
   }
 
-  function clickNextButton(platform) {
-    let selectors = [];
-    if (platform === "youtube") {
-      selectors = [
-        'button[aria-label="Next"]', 
-        'button[aria-label*="Next video"]',
-        'button[aria-label*="Video tiếp theo"]',
-        'ytd-reel-player-overlay-renderer tp-yt-paper-icon-button[aria-label*="Next"]',
-        '#navigation button[aria-label="Next"]'
-      ];
-    } else if (platform === "facebook") {
-      selectors = [
-        '[role="button"][aria-label="Next"]',
-        '[role="button"][aria-label="Go to next reel"]',
-        'div[aria-label="Next"]',
-        'div[aria-label="Go to next reel"]',
-        'div[tabindex="0"][role="button"] > i[data-visualcompletion="css-img"][alt="Next"]', 
-        'div[role="button"][tabindex="0"] > i[data-visualcompletion="css-img"][alt*="Tiếp theo"]'
-      ];
-    } else if (platform === "tiktok") {
-        selectors = [
-            'button[data-e2e="arrow-right"]', 
-            'button[data-e2e="arrow-down"]', 
-            'div[data-e2e="feed-video"] > div.xgscf4j > div:last-child button', 
-            'div[data-e2e="video-player-container"] > div > div:last-child button'
-        ];
-    }
-    
+  function clickNextButtonYouTube() {
+    const selectors = [
+      'button[aria-label="Next"]',
+      'button[aria-label*="Next video"]',
+      'button[aria-label*="Video tiếp theo"]',
+      'ytd-reel-player-overlay-renderer tp-yt-paper-icon-button[aria-label*="Next"]',
+      '#navigation button[aria-label="Next"]'
+    ];
+    const root = document;
     for (const sel of selectors) {
-      const elements = Array.from(document.querySelectorAll(sel));
+      const elements = Array.from(root.querySelectorAll(sel));
       for (const el of elements) {
-        if (isVisible(el)) { 
-          if (tryClick(el)) {
-            toast(`Click: ${el.getAttribute('aria-label') || el.tagName}`);
-            return true;
-          }
+        if (isVisible(el) && tryClick(el)) { toast(`Click: ${el.getAttribute('aria-label') || el.tagName}`); return true; }
+      }
+    }
+    return false;
+  }
+
+  function clickNextButtonFacebook() {
+    const selectors = [
+      '[role="button"][aria-label="Next"]',
+      '[role="button"][aria-label="Go to next reel"]',
+      'div[aria-label="Next"]',
+      'div[aria-label="Go to next reel"]',
+      '[role="button"][aria-label*="Tiếp theo"]',
+      'div[role="button"][aria-label*="Tiếp theo"]',
+      'div[tabindex="0"][role="button"] > i[data-visualcompletion="css-img"][alt="Next"]'
+    ];
+    const root = document.querySelector('div[role="dialog"]') || document;
+    const now = Date.now();
+    if (now - lastNavAt < COOLDOWN) return false;  // tránh double click
+    lastNavAt = now;
+
+    for (const sel of selectors) {
+      const elements = Array.from(root.querySelectorAll(sel));
+      for (const el of elements) {
+        if (isVisible(el)) {
+          tryClick(el);
+          toast(`Next reel clicked`);
+          return true;  // Dừng ngay sau click đầu tiên
         }
       }
     }
+
+  // Nếu không có nút, fallback: giả lập phím ↓
+  simulateKeyPress(40, "ArrowDown");
+  toast("ArrowDown fallback");
+  return true;
+}
+
+
+  function clickNextButtonTikTok() {
+    const selectors = [
+      'button[data-e2e="arrow-right"]',
+      'button[data-e2e="arrow-down"]',
+      'div[data-e2e="feed-video"] > div.xgscf4j > div:last-child button',
+      'div[data-e2e="video-player-container"] > div > div:last-child button'
+    ];
+    const root = document;
+    for (const sel of selectors) {
+      const elements = Array.from(root.querySelectorAll(sel));
+      for (const el of elements) {
+        if (isVisible(el) && tryClick(el)) { toast(`Click: ${el.getAttribute('aria-label') || el.tagName}`); return true; }
+      }
+    }
+    return false;
+  }
+
+  function scrollNextTikTok() {
+    const container = document.querySelector('div[data-e2e="scroll-list"], div[data-e2e="scroll-container"]');
+    if (container) {
+      container.scrollBy({ top: container.clientHeight, behavior: "smooth" });
+      toast("Scrolled TikTok next");
+      return true;
+    }
+    // Fallback dùng phím mũi tên ↓
+    simulateKeyPress(40, "ArrowDown");
+    return false;
+  }
+
+
+  function clickNextButton(platform) {
+    if (platform === "youtube") return clickNextButtonYouTube();
+    if (platform === "facebook") return clickNextButtonFacebook();
+    if (platform === "tiktok") return clickNextButtonTikTok();
     return false;
   }
 
@@ -136,46 +189,18 @@ const rcUtils = (() => {
     const now = Date.now();
     if (now - lastNavAt < COOLDOWN) return;
     lastNavAt = now;
-  
-    const prev = currentVideo();
-    const prevSrc = prev ? prev.currentSrc : null;
-  
-    if (prev && !prev.paused) { try { prev.pause(); } catch (_) {} }
-  
-    if (clickNextButton(platform)) {
-      setTimeout(() => {
-        const v = currentVideo();
-        if (v && v.paused) { try { v.play(); } catch (_) {} } 
-      }, 500); 
-      return;
-    }
-  
+
     if (platform === "youtube") {
-        simulateKeyPress(40, "ArrowDown"); 
-        toast("Key: ArrowDown");
+      clickNextButtonYouTube();
     } else if (platform === "facebook") {
-        simulateKeyPress(39, "ArrowRight"); 
-        toast("Key: ArrowRight");
+      clickNextButtonFacebook();
     } else if (platform === "tiktok") {
-        window.scrollBy({ top: window.innerHeight * 0.9, behavior: "smooth" });
-        toast("Scroll Down");
+      scrollNextTikTok();
+    } else {
+      window.scrollBy({ top: window.innerHeight * 0.9, behavior: "smooth" });
     }
-    
-    setTimeout(() => {
-      const cur = currentVideo();
-      const sameEl = !!(cur && prev && cur === prev);
-      const sameSrc = !!(cur && prev && cur.currentSrc && prevSrc && cur.currentSrc === prevSrc);
-      const resetTime = !!(cur && cur.currentTime < 0.7); 
-  
-      if ((sameEl && (resetTime || sameSrc)) || (!cur && prev)) {
-        window.scrollBy({ top: window.innerHeight * 0.95, behavior: "smooth" });
-        toast("Hard Fallback Scroll");
-      }
-  
-      const v = currentVideo();
-      if (v && v.paused) { try { v.play(); } catch (_) {} }
-    }, 1000); 
   }
+
 
   function setPlaybackRateAll(rate) {
     visibleVideos().forEach(v => { v.playbackRate = rate; });

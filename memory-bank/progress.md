@@ -30,6 +30,17 @@ Mốc tiếp theo
 - Sửa lỗi auto-advance bị replay cùng video sau khi kết thúc: tạm dừng video hiện tại trước khi điều hướng, xác minh sau điều hướng bằng cách so sánh element/src và thời gian, nếu chưa chuyển thì kích hoạt fallback mạnh (click Next, ArrowDown/ArrowRight, scroll). 
 - Giữ cơ chế ưu tiên click nút "Tiếp theo"/"Video tiếp theo" trên YouTube Shorts và Facebook Reels; sau đó gửi phím ArrowDown (và ArrowRight cho Facebook), cuối cùng mới scroll.
 - Bảo toàn cooldown để tránh spam điều hướng.
+- Thu hẹp selector Facebook cho nút Next: ưu tiên aria-label/alt (Next/Go to next reel/Tiếp theo), chỉ tìm trong dialog để tránh click menu.
+- simulateKeyPress phát sự kiện tới dialog/activeElement trước body/window để tăng tỉ lệ bắt phím.
+ - Tránh lướt hai video: với Facebook chỉ gửi ArrowDown nếu sau ArrowRight chưa chuyển video.
+ - Cải thiện nhận diện video Facebook: tìm trong dialog và nới điều kiện readyState.
+ - Thêm fallback ArrowDown sau ArrowRight cho Facebook.
+- Tách 3 luồng logic độc lập theo nền tảng:
+  * YouTube Shorts: clickNextButtonYouTube + ArrowDown fallback.
+  * Facebook Reels: clickNextButtonFacebook + ArrowRight, chỉ ArrowDown nếu chưa chuyển.
+  * TikTok: clickNextButtonTikTok + scroll fallback.
+ - Giới hạn simulateKeyPress phát sự kiện tới một target duy nhất để tránh double-action trên Facebook.
+ - Ưu tiên chọn nút mũi tên xuống trên TikTok để sang video kế tiếp.
 
 ## Next
 - Test thực tế trên YouTube Shorts và Facebook Reels để xác nhận: không replay lại cùng video, auto play video mới nếu đang pause.

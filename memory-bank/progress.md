@@ -37,10 +37,12 @@ Mốc tiếp theo
  - Thêm fallback ArrowDown sau ArrowRight cho Facebook.
 - Tách 3 luồng logic độc lập theo nền tảng:
   * YouTube Shorts: clickNextButtonYouTube + ArrowDown fallback.
-  * Facebook Reels: clickNextButtonFacebook + ArrowRight, chỉ ArrowDown nếu chưa chuyển.
+  * Facebook Reels: clickNextButtonFacebook + ArrowRight; nếu chưa chuyển thì retry click Next hoặc ArrowRight lần 2 (không dùng ArrowDown để tránh lùi về video trước).
   * TikTok: clickNextButtonTikTok + scroll fallback.
  - Giới hạn simulateKeyPress phát sự kiện tới một target duy nhất để tránh double-action trên Facebook.
- - Ưu tiên chọn nút mũi tên xuống trên TikTok để sang video kế tiếp.
+ - TikTok: ưu tiên nút mũi tên xuống; nếu không đổi video sau keydown thì focus và cuộn container (`scroll-list`/`scroll-container`).
+- Cập nhật scrollToNextVideo: tạm dừng video hiện tại, kiểm tra element/src; Facebook dùng ArrowRight trước, chỉ gửi ArrowDown nếu chưa đổi video; TikTok ưu tiên ArrowDown và cuộn fallback; auto-play video mới nếu đang pause.
+ - Nâng độ tin cậy keydown: thêm dispatch `keyup` và đảm bảo focus đúng container theo nền tảng trước khi gửi phím (YouTube/FB/TikTok).
 
 ## Next
 - Test thực tế trên YouTube Shorts và Facebook Reels để xác nhận: không replay lại cùng video, auto play video mới nếu đang pause.

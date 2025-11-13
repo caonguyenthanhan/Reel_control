@@ -27,12 +27,14 @@
 - Điều chỉnh điều hướng Facebook: gửi ArrowRight trước; chỉ gửi ArrowDown nếu kiểm tra thấy chưa chuyển video (so sánh element/src) để tránh lướt 2 video một lượt.
 - Tách 3 luồng logic độc lập:
   * YouTube Shorts: clickNextButtonYouTube + ArrowDown fallback.
-  * Facebook Reels: clickNextButtonFacebook (tìm trong dialog) + ArrowRight, chỉ ArrowDown nếu chưa chuyển.
+  * Facebook Reels: clickNextButtonFacebook (tìm trong dialog) + ArrowRight; nếu chưa đổi video thì retry click Next hoặc ArrowRight lần 2 (bỏ ArrowDown để tránh nhảy lùi).
   * TikTok: clickNextButtonTikTok + scroll fallback.
  - Giới hạn phát keydown tới một target: ưu tiên `div[role="dialog"]`, nếu không có thì `document.activeElement`, cuối cùng là `document`. Tránh phát đồng thời tới nhiều nơi gây double-action trên Facebook.
- - TikTok ưu tiên click nút mũi tên xuống (`button[data-e2e="arrow-down"]`) để sang video tiếp theo.
- - Nâng cấp nhận diện video: tìm trong dialog và nới điều kiện readyState để không bỏ lỡ video Facebook.
- - Bổ sung fallback phím ArrowDown sau ArrowRight cho Facebook.
+ - TikTok: ưu tiên click nút mũi tên xuống (`button[data-e2e="arrow-down"]`); nếu không có nút, gửi `ArrowDown`, sau đó focus container cuộn (`div[data-e2e="scroll-list"|"scroll-container"]`) và scroll container làm fallback.
+- Nâng cấp nhận diện video: tìm trong dialog và nới điều kiện readyState để không bỏ lỡ video Facebook.
+- Bổ sung fallback phím ArrowDown sau ArrowRight cho Facebook.
+- Cập nhật chuỗi điều hướng trong scrollToNextVideo: tạm dừng video hiện tại, so sánh element/src sau hành động; Facebook dùng ArrowRight trước, chỉ ArrowDown nếu chưa đổi video; TikTok ưu tiên ArrowDown và cuộn fallback; auto-play video mới sau một khoảng ngắn.
+ - Cải thiện bắt phím: thêm `keyup` sau `keydown` với độ trễ nhỏ và bổ sung thuộc tính sự kiện (`code`, `which`, `view`, `composed`) để tăng khả năng listener nắm bắt; trước khi gửi phím, focus đúng container theo nền tảng (Facebook: dialog/video, TikTok: scroll container/video, YouTube: player/video).
 
 Trạng thái hiện tại
 - Đã khởi tạo scaffold extension MV3: manifest.json, background.js, content.js, utils.js, icons/.

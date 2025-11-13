@@ -4,6 +4,7 @@ const rcUtils = (() => {
   let toastEl = null;
   let hideTimer = null;
   let lastNavAt = 0;
+  let lastAutoAdvanceNotifyDownAt = 0;
   const COOLDOWN = 1200; 
 
   function getPlatform() {
@@ -78,23 +79,65 @@ const rcUtils = (() => {
   }
 
   function simulateKeyPress(keyCode, key, shiftKey = false, ctrlKey = false, altKey = false, metaKey = false) {
-    const event = new KeyboardEvent('keydown', {
+    const kd = new KeyboardEvent('keydown', {
       bubbles: true,
       cancelable: true,
       keyCode: keyCode,
+      which: keyCode,
       key: key,
+      code: key,
       shiftKey: shiftKey,
       ctrlKey: ctrlKey,
       altKey: altKey,
-      metaKey: metaKey
+      metaKey: metaKey,
+      repeat: false,
+      view: window,
+      composed: true
+    });
+    const ku = new KeyboardEvent('keyup', {
+      bubbles: true,
+      cancelable: true,
+      keyCode: keyCode,
+      which: keyCode,
+      key: key,
+      code: key,
+      shiftKey: shiftKey,
+      ctrlKey: ctrlKey,
+      altKey: altKey,
+      metaKey: metaKey,
+      view: window,
+      composed: true
     });
 
     const dialog = document.querySelector('div[role="dialog"]');
-    if (dialog) dialog.dispatchEvent(event);
-    const ae = document.activeElement;
-    if (ae && ae !== document.body && ae !== document.documentElement) ae.dispatchEvent(event);
-    document.body.dispatchEvent(event);
-    window.dispatchEvent(event);
+    let target = dialog || document.activeElement;
+    if (!target || target === document.body || target === document.documentElement) {
+      target = document;
+    }
+    try { target.dispatchEvent(kd); } catch (e) {}
+    // Một số viewer chỉ lắng nghe keyup
+    setTimeout(() => { try { target.dispatchEvent(ku); } catch (e) {} }, 16);
+  }
+
+  function ensureFocusForPlatform(platform) {
+    try {
+      if (platform === "facebook") {
+        const dlg = document.querySelector('div[role="dialog"]');
+        if (dlg) { if (!dlg.hasAttribute('tabindex')) dlg.setAttribute('tabindex', '-1'); dlg.focus(); return; }
+        const v = document.querySelector('video');
+        if (v) { if (!v.hasAttribute('tabindex')) v.setAttribute('tabindex', '-1'); v.focus(); return; }
+      } else if (platform === "tiktok") {
+        const container = document.querySelector('div[data-e2e="scroll-list"], div[data-e2e="scroll-container"]');
+        if (container) { if (!container.hasAttribute('tabindex')) container.setAttribute('tabindex', '-1'); container.focus(); return; }
+        const v = document.querySelector('video');
+        if (v) { if (!v.hasAttribute('tabindex')) v.setAttribute('tabindex', '-1'); v.focus(); return; }
+      } else if (platform === "youtube") {
+        const player = document.querySelector('ytd-reel-player-renderer, ytd-watch-flexy, #player, .html5-video-player');
+        if (player) { if (!player.hasAttribute('tabindex')) player.setAttribute('tabindex', '-1'); player.focus(); return; }
+        const v = document.querySelector('video');
+        if (v) { if (!v.hasAttribute('tabindex')) v.setAttribute('tabindex', '-1'); v.focus(); return; }
+      }
+    } catch (e) {}
   }
 
   function clickNextButtonYouTube() {
@@ -126,32 +169,36 @@ const rcUtils = (() => {
       'div[tabindex="0"][role="button"] > i[data-visualcompletion="css-img"][alt="Next"]'
     ];
     const root = document.querySelector('div[role="dialog"]') || document;
-    const now = Date.now();
-    if (now - lastNavAt < COOLDOWN) return false;  // tránh double click
-    lastNavAt = now;
-
     for (const sel of selectors) {
       const elements = Array.from(root.querySelectorAll(sel));
       for (const el of elements) {
-        if (isVisible(el)) {
-          tryClick(el);
-          toast(`Next reel clicked`);
-          return true;  // Dừng ngay sau click đầu tiên
-        }
+        if (isVisible(el) && tryClick(el)) { toast(`Click: ${el.getAttribute('aria-label') || el.tagName}`); return true; }
       }
     }
+    return false;
+  }
 
-  // Nếu không có nút, fallback: giả lập phím ↓
-  simulateKeyPress(40, "ArrowDown");
-  toast("ArrowDown fallback");
-  return true;
-}
+  function scrollNextTikTok() {
+    const container = document.querySelector('div[data-e2e="scroll-list"], div[data-e2e="scroll-container"]');
+    if (container) {
+      try {
+        if (!container.hasAttribute('tabindex')) container.setAttribute('tabindex', '-1');
+        container.focus();
+      } catch (e) {}
+      container.scrollBy({ top: container.clientHeight, behavior: "smooth" });
+      toast("Scrolled TikTok next");
+      return true;
+    }
+    // Fallback dùng phím mũi tên ↓ nếu không có container
+    simulateKeyPress(40, "ArrowDown");
+    return false;
+  }
 
 
   function clickNextButtonTikTok() {
     const selectors = [
-      'button[data-e2e="arrow-right"]',
       'button[data-e2e="arrow-down"]',
+      'button[data-e2e="arrow-right"]',
       'div[data-e2e="feed-video"] > div.xgscf4j > div:last-child button',
       'div[data-e2e="video-player-container"] > div > div:last-child button'
     ];
@@ -165,19 +212,6 @@ const rcUtils = (() => {
     return false;
   }
 
-  function scrollNextTikTok() {
-    const container = document.querySelector('div[data-e2e="scroll-list"], div[data-e2e="scroll-container"]');
-    if (container) {
-      container.scrollBy({ top: container.clientHeight, behavior: "smooth" });
-      toast("Scrolled TikTok next");
-      return true;
-    }
-    // Fallback dùng phím mũi tên ↓
-    simulateKeyPress(40, "ArrowDown");
-    return false;
-  }
-
-
   function clickNextButton(platform) {
     if (platform === "youtube") return clickNextButtonYouTube();
     if (platform === "facebook") return clickNextButtonFacebook();
@@ -190,15 +224,64 @@ const rcUtils = (() => {
     if (now - lastNavAt < COOLDOWN) return;
     lastNavAt = now;
 
+    const prev = currentVideo();
+    const prevSrc = prev && prev.currentSrc ? prev.currentSrc : null;
+    if (prev && !prev.paused) {
+      try { prev.pause(); } catch (e) {}
+    }
+
+    let clicked = false;
+
     if (platform === "youtube") {
-      clickNextButtonYouTube();
+      clicked = clickNextButtonYouTube();
+      if (!clicked) {
+        ensureFocusForPlatform("youtube");
+        simulateKeyPress(40, 'ArrowDown');
+        toast('Key: ArrowDown');
+      }
     } else if (platform === "facebook") {
-      clickNextButtonFacebook();
+      clicked = clickNextButtonFacebook();
+      if (!clicked) {
+        ensureFocusForPlatform("facebook");
+        simulateKeyPress(39, 'ArrowDown');
+        toast('Key: ArrowDown');
+        setTimeout(() => {
+          const cur = currentVideo();
+          const changed = !(cur && prev && (cur === prev || (cur && cur.currentSrc && prevSrc && cur.currentSrc === prevSrc)));
+          if (!changed) {
+            const clickedRetry = clickNextButtonFacebook();
+            if (!clickedRetry) {
+              simulateKeyPress(39, 'ArrowDown');
+              toast('Key: ArrowDown');
+            }
+          }
+        }, 500);
+      }
     } else if (platform === "tiktok") {
-      scrollNextTikTok();
+      clicked = clickNextButtonTikTok();
+      if (!clicked) {
+        ensureFocusForPlatform("tiktok");
+        simulateKeyPress(40, 'ArrowDown');
+        toast('Key: ArrowDown');
+        setTimeout(() => {
+          const cur = currentVideo();
+          const sameEl = !!(cur && prev && cur === prev);
+          const sameSrc = !!(cur && prev && cur.currentSrc && prevSrc && cur.currentSrc === prevSrc);
+          if (sameEl || sameSrc) {
+            scrollNextTikTok();
+          }
+        }, 600);
+      }
     } else {
       window.scrollBy({ top: window.innerHeight * 0.9, behavior: "smooth" });
     }
+
+    setTimeout(() => {
+      const v = currentVideo();
+      if (v && v.paused) {
+        try { v.play(); } catch (e) {}
+      }
+    }, 900);
   }
 
 
@@ -247,6 +330,16 @@ const rcUtils = (() => {
         statusEl.textContent = "RC: " + (isAutoAdvanceActive ? "ON" : "OFF (Auto)");
         statusEl.style.background = isAutoAdvanceActive ? "rgba(0,128,0,0.6)" : "rgba(64,64,64,0.6)";
         statusEl.style.color = "#fff";
+
+        if (isAutoAdvanceActive) {
+          const now = Date.now();
+          if (now - lastAutoAdvanceNotifyDownAt > COOLDOWN) {
+            ensureFocusForPlatform(getPlatform());
+            simulateKeyPress(40, 'ArrowDown');
+            toast('Key: ArrowDown');
+            lastAutoAdvanceNotifyDownAt = now;
+          }
+        }
     }
   }
 

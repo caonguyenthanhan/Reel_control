@@ -15,6 +15,16 @@ const rcUtils = (() => {
     return "unknown";
   }
 
+  function isReelPage() {
+    const p = location.pathname;
+    switch (getPlatform()) {
+      case "youtube": return p.startsWith("/shorts");
+      case "facebook": return /^\/(reel|reels|watch|share\/r)(\/|$)/.test(p);
+      case "tiktok": return p === "/" || /^\/(foryou|following|explore|live)/.test(p) || p.includes("/video/");
+      default: return false;
+    }
+  }
+
   function isInViewport(el) {
     if (!el || el.offsetParent === null) return false;
     const r = el.getBoundingClientRect();
@@ -243,7 +253,7 @@ const rcUtils = (() => {
       clicked = clickNextButtonFacebook();
       if (!clicked) {
         ensureFocusForPlatform("facebook");
-        simulateKeyPress(39, 'ArrowDown');
+        simulateKeyPress(40, 'ArrowDown');
         toast('Key: ArrowDown');
         setTimeout(() => {
           const cur = currentVideo();
@@ -251,7 +261,7 @@ const rcUtils = (() => {
           if (!changed) {
             const clickedRetry = clickNextButtonFacebook();
             if (!clickedRetry) {
-              simulateKeyPress(39, 'ArrowDown');
+              simulateKeyPress(40, 'ArrowDown');
               toast('Key: ArrowDown');
             }
           }
@@ -331,15 +341,6 @@ const rcUtils = (() => {
         statusEl.style.background = isAutoAdvanceActive ? "rgba(0,128,0,0.6)" : "rgba(64,64,64,0.6)";
         statusEl.style.color = "#fff";
 
-        if (isAutoAdvanceActive) {
-          const now = Date.now();
-          if (now - lastAutoAdvanceNotifyDownAt > COOLDOWN) {
-            ensureFocusForPlatform(getPlatform());
-            simulateKeyPress(40, 'ArrowDown');
-            toast('Key: ArrowDown');
-            lastAutoAdvanceNotifyDownAt = now;
-          }
-        }
     }
   }
 
@@ -360,6 +361,6 @@ const rcUtils = (() => {
     hideTimer = setTimeout(() => { toastEl.style.opacity = "0"; }, 1200);
   }
 
-  return { getPlatform, currentVideo, scrollToNextVideo, setPlaybackRateAll, createOrUpdateSpeedOverlay, createOrUpdateStatusOverlay, toast, simulateKeyPress };
+  return { getPlatform, isReelPage, currentVideo, scrollToNextVideo, setPlaybackRateAll, createOrUpdateSpeedOverlay, createOrUpdateStatusOverlay, toast, simulateKeyPress };
 })();
 window.rcUtils = rcUtils;

@@ -19,11 +19,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 chrome.commands.onCommand.addListener((command) => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tab = tabs[0];
-    const url = (tab && tab.url) || "";
-    // Chỉ gửi lệnh tới các trang web được hỗ trợ
-    const supported = /^(https?:\/\/)?([^\/]*\.)?(youtube\.com|facebook\.com|tiktok\.com)\//i.test(url);
-    
-    if (tab && tab.id && supported) {
+    if (tab && tab.id) {
       let messageType;
       
       if (command === "toggle_auto_advance") {

@@ -27,7 +27,7 @@
 
   function maybeAdvance() {
     // Chỉ chạy nếu cả Auto-Advance và Extension tổng thể đều BẬT
-    if (!isActive || !isExtensionGloballyActive || isPausedByUser) return;
+    if (!isActive || !isExtensionGloballyActive || isPausedByUser || !rcUtils.isReelPage()) return;
     rcUtils.scrollToNextVideo(platform);
     rcUtils.toast("Auto Advance");
   }
@@ -68,6 +68,7 @@
         });
 
         v.addEventListener("play", function() {
+          isPausedByUser = false; // video mới bắt đầu phát -> cho phép auto-advance lại
           if (this.playbackRate !== currentRate) {
             this.playbackRate = currentRate;
           }
@@ -91,6 +92,9 @@
   document.addEventListener("keydown", (e) => {
     // Bỏ qua nếu người dùng đang nhập liệu
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // Chỉ chiếm phím trên trang reel/shorts/feed video
+    if (!rcUtils.isReelPage()) return;
     
     // Spacebar: Pause/Play 
     if (isExtensionGloballyActive && (e.key === " " || e.code === "Space")) {

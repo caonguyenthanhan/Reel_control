@@ -3,7 +3,8 @@
   "name": "Reel Control",
   "version": "1.1.0",
   "description": "Cải thiện trải nghiệm xem video ngắn: auto-advance, điều khiển tốc độ, phím tắt, chụp ảnh.",
-  "permissions": ["activeTab", "storage", "downloads", "tabs"],
+  "permissions": ["activeTab", "storage", "downloads"],
+  "host_permissions": ["*://*.facebook.com/*", "*://*.youtube.com/*", "*://*.tiktok.com/*"],
   "background": { "service_worker": "background.js" },
   "icons": {
     "16": "icons/Reel_Control.png",
@@ -19,7 +20,7 @@
       ],
       "js": ["utils.js", "content.js"],
       "run_at": "document_idle",
-      "all_frames": true
+      "all_frames": false
     }
   ],
   "commands": {
